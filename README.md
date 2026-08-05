@@ -1,4 +1,4 @@
-🎬#IMDB Movie Review Sentiment Analysis
+🎬IMDB Movie Review Sentiment Analysis
 
 A Machine Learning and Natural Language Processing (NLP) project that classifies IMDB movie reviews as Positive or Negative using the IMDB Dataset of 50K Movie Reviews from Kaggle. The project demonstrates the complete NLP pipeline, including text preprocessing, exploratory data analysis (EDA), feature extraction, model training, evaluation, and performance comparison.
 
