@@ -1,0 +1,206 @@
+{
+  "positive": [
+    {
+      "term": "great",
+      "weight": 7.5949
+    },
+    {
+      "term": "excellent",
+      "weight": 6.8836
+    },
+    {
+      "term": "perfect",
+      "weight": 5.5467
+    },
+    {
+      "term": "amazing",
+      "weight": 4.9425
+    },
+    {
+      "term": "wonderful",
+      "weight": 4.935
+    },
+    {
+      "term": "best",
+      "weight": 4.7904
+    },
+    {
+      "term": "loved",
+      "weight": 4.4485
+    },
+    {
+      "term": "hilarious",
+      "weight": 4.3161
+    },
+    {
+      "term": "favorite",
+      "weight": 4.2762
+    },
+    {
+      "term": "brilliant",
+      "weight": 4.2581
+    },
+    {
+      "term": "fun",
+      "weight": 4.2118
+    },
+    {
+      "term": "one best",
+      "weight": 4.1926
+    },
+    {
+      "term": "enjoyed",
+      "weight": 4.0087
+    },
+    {
+      "term": "today",
+      "weight": 3.9591
+    },
+    {
+      "term": "must see",
+      "weight": 3.833
+    },
+    {
+      "term": "superb",
+      "weight": 3.8018
+    },
+    {
+      "term": "enjoyable",
+      "weight": 3.7558
+    },
+    {
+      "term": "well",
+      "weight": 3.7286
+    },
+    {
+      "term": "definitely",
+      "weight": 3.6451
+    },
+    {
+      "term": "love",
+      "weight": 3.6061
+    },
+    {
+      "term": "still",
+      "weight": 3.5382
+    },
+    {
+      "term": "highly",
+      "weight": 3.5265
+    },
+    {
+      "term": "fantastic",
+      "weight": 3.4975
+    },
+    {
+      "term": "perfectly",
+      "weight": 3.2246
+    },
+    {
+      "term": "well worth",
+      "weight": 3.2019
+    }
+  ],
+  "negative": [
+    {
+      "term": "worst",
+      "weight": -9.4667
+    },
+    {
+      "term": "bad",
+      "weight": -8.528
+    },
+    {
+      "term": "awful",
+      "weight": -7.8583
+    },
+    {
+      "term": "waste",
+      "weight": -7.0929
+    },
+    {
+      "term": "boring",
+      "weight": -6.5336
+    },
+    {
+      "term": "poor",
+      "weight": -6.0143
+    },
+    {
+      "term": "terrible",
+      "weight": -5.823
+    },
+    {
+      "term": "nothing",
+      "weight": -5.523
+    },
+    {
+      "term": "horrible",
+      "weight": -5.0607
+    },
+    {
+      "term": "worse",
+      "weight": -4.9895
+    },
+    {
+      "term": "dull",
+      "weight": -4.948
+    },
+    {
+      "term": "poorly",
+      "weight": -4.8677
+    },
+    {
+      "term": "stupid",
+      "weight": -4.6291
+    },
+    {
+      "term": "fails",
+      "weight": -4.5414
+    },
+    {
+      "term": "unfortunately",
+      "weight": -4.496
+    },
+    {
+      "term": "disappointing",
+      "weight": -4.4435
+    },
+    {
+      "term": "instead",
+      "weight": -4.3267
+    },
+    {
+      "term": "annoying",
+      "weight": -4.2294
+    },
+    {
+      "term": "disappointment",
+      "weight": -4.2005
+    },
+    {
+      "term": "supposed",
+      "weight": -4.1962
+    },
+    {
+      "term": "ridiculous",
+      "weight": -4.1627
+    },
+    {
+      "term": "lame",
+      "weight": -4.1314
+    },
+    {
+      "term": "waste time",
+      "weight": -4.0721
+    },
+    {
+      "term": "minute",
+      "weight": -4.027
+    },
+    {
+      "term": "even",
+      "weight": -4.0013
+    }
+  ]
+}

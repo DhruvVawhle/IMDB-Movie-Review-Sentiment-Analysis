@@ -1,0 +1,4 @@
+"""
+CineSense UI Tabs.
+"""
+

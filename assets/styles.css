@@ -1,0 +1,286 @@
+/* =====================================================================
+   CineSense — Movie Review Intelligence Design System
+   Cinematic Editorial Dark Theme (WCAG AA Compliant)
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Albert+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-deep: #0D1117;
+  --bg-surface-1: #161B22;
+  --bg-surface-2: #21262D;
+  --border-subtle: #30363D;
+  --border-strong: #484F58;
+  
+  --text-primary: #F0F6FC;
+  --text-muted: #8B949E;
+  --text-dim: #6E7681;
+  
+  --accent-amber: #D29922;
+  --accent-amber-hover: #E3B341;
+  --accent-amber-tint: rgba(210, 153, 34, 0.12);
+  
+  --sentiment-pos: #238636;
+  --sentiment-pos-fg: #3FB950;
+  --sentiment-pos-tint: rgba(46, 160, 67, 0.14);
+  --sentiment-pos-border: rgba(63, 185, 80, 0.4);
+  
+  --sentiment-neg: #DA3633;
+  --sentiment-neg-fg: #F85149;
+  --sentiment-neg-tint: rgba(218, 54, 51, 0.14);
+  --sentiment-neg-border: rgba(248, 81, 73, 0.4);
+
+  --font-serif: 'Cinzel', Georgia, serif;
+  --font-sans: 'Albert Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* Global Container Tweaks */
+.main .block-container {
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+  max-width: 1140px;
+}
+
+/* Selection and caret */
+::selection {
+  background: var(--accent-amber-tint);
+  color: var(--accent-amber-hover);
+}
+
+/* Header & Wordmark */
+.cinesense-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.cinesense-title {
+  font-family: var(--font-serif);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.cinesense-edition {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent-amber);
+  background: var(--accent-amber-tint);
+  border: 1px solid var(--accent-amber);
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cinesense-subtitle {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  margin-bottom: 1.75rem;
+  line-height: 1.5;
+  max-width: 72ch;
+}
+
+/* Section Headings */
+.editorial-heading {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.editorial-subheading {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+/* Information Callout Banner */
+.cinesense-panel {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.cinesense-panel-title {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.cinesense-panel-body {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Stat Metric Block */
+.stat-box {
+  background: var(--bg-surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.stat-label {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-desc {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}
+
+/* Prediction Verdict Cards */
+.verdict-card {
+  border-radius: 6px;
+  padding: 1.5rem 1.75rem;
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.verdict-card.positive {
+  background: var(--sentiment-pos-tint);
+  border: 1px solid var(--sentiment-pos-border);
+}
+
+.verdict-card.negative {
+  background: var(--sentiment-neg-tint);
+  border: 1px solid var(--sentiment-neg-border);
+}
+
+.verdict-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+  border-radius: 3px;
+  margin-bottom: 0.75rem;
+}
+
+.verdict-pill.positive {
+  background: var(--sentiment-pos);
+  color: #FFFFFF;
+}
+
+.verdict-pill.negative {
+  background: var(--sentiment-neg);
+  color: #FFFFFF;
+}
+
+.verdict-headline {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0.25rem 0 0.5rem 0;
+  line-height: 1.2;
+}
+
+.verdict-subtext {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Feature Badge */
+.term-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  margin: 0.2rem 0.3rem 0.2rem 0;
+}
+
+.term-chip.positive {
+  background: var(--sentiment-pos-tint);
+  color: var(--sentiment-pos-fg);
+  border: 1px solid var(--sentiment-pos-border);
+}
+
+.term-chip.negative {
+  background: var(--sentiment-neg-tint);
+  color: var(--sentiment-neg-fg);
+  border: 1px solid var(--sentiment-neg-border);
+}
+
+/* Navigation Tabs */
+.stTabs [data-baseweb="tab-list"] {
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+}
+
+.stTabs [data-baseweb="tab"] {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.6rem 0.25rem;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+  color: var(--text-primary);
+}
+
+.stTabs [aria-selected="true"] {
+  color: var(--accent-amber-hover) !important;
+  border-bottom-color: var(--accent-amber) !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
