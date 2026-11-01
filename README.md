@@ -10,13 +10,18 @@
 
 ## 1. What the App Does
 
-**CineSense** is an interactive NLP intelligence dashboard and sentiment classification workbench. It allows users to paste any movie review and evaluate whether three different machine learning architectures read it as **Positive** or **Negative**:
+**CineSense** is an art-directed cinema intelligence dashboard and sentiment classification workbench. It merges production NLP architectures with a Letterboxd-style film discovery and community review ecosystem:
 
-- **Interactive Sentiment Analysis:** Real-time inference across Logistic Regression (TF-IDF), Multinomial Naive Bayes (Bag of Words), and a Bidirectional LSTM (PyTorch neural sequence model).
-- **Inline Word Highlighting via LIME:** Explainability module that computes local word attributions. Influential words are highlighted directly inside the review text (green background with solid underline for positive; red background with dotted underline for negative; opacity scaled to attribution weight; tooltip title showing exact score delta).
-- **Architectural Comparison Mode:** Side-by-side verdict cards, posterior confidence meters, and calibrated probabilities.
-- **Empirical Error Analysis:** Offline evaluation across 10,000 unseen test reviews, auditing inter-model consensus, misclassifications, and syntactic failure patterns (negations, contrastive transitions, and lengthy reviews).
-- **Corpus Explorer & NLP Pipeline Audit:** Searchable 50,000-review dataset viewer and step-by-step lexical tokenization inspector.
+- **Multi-Model Sentiment Analysis:** Real-time inference across three distinct machine learning architectures:
+  - **Logistic Regression** (TF-IDF 1–2 ngrams, 20K vocabulary) — *Production baseline (89.78% accuracy, 0.9634 ROC-AUC)*
+  - **Multinomial Naive Bayes** (Bag-of-Words with Laplace smoothing) — *Fast probabilistic baseline (86.90% accuracy)*
+  - **Bidirectional LSTM** (PyTorch neural sequence network with embedding & max-pooling) — *Deep representation model (83.30% accuracy)*
+- **Explainable AI via LIME:** Real-time token attribution highlights influential words directly in review text (green with solid underline for positive; red with dotted underline for negative; tooltip showing exact delta contribution).
+- **Letterboxd Community Reviews & Era Filters:** Persistent community review stream calibrated by AI sentiment detection. Interactive era filters allow toggling between **All cinema**, **Latest releases (2020s)** (*Dune: Part Two*, *Oppenheimer*, *Past Lives*), and **Golden classics (Pre-2000)** (*The Godfather*, *12 Angry Men*, *Pulp Fiction*, *Taxi Driver*), with dynamic click-to-cycle pagination.
+- **Personal Watched Diary:** Letterboxd-style film tracking: log watches, assign 0.5–5.0 star ratings, like films, and track multiple viewing counts persistently stored in JSON.
+- **Theatrical Discovery & 9-Movie Grid:** TMDB-powered cinema browser featuring a clean 3×3 grid (9 films per batch) with instant offset rotation, sticky synopsis panel, and curated 5-film marquee rows on the Home tab for current and upcoming theatrical premieres.
+- **Sample Review Presets:** One-click preloaded reviews (*Rave Review*, *Critical Pan*, *Nuanced Mixed*, *Short Remark*) that automatically populate the input area and execute inference.
+- **Corpus Explorer & Lexical Pipeline Audit:** Searchable 50,000-review dataset viewer and 4-stage preprocessing breakdown (cleaning, normalization, tokenization, lemmatization).
 
 ---
 
@@ -86,6 +91,11 @@
 6. **Launch the Streamlit Application:**
    ```bash
    streamlit run app.py
+   ```
+
+7. **Run Unit & Integration Tests (48 passing tests):**
+   ```bash
+   pytest tests/ -v
    ```
 
 ---

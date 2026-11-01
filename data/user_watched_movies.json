@@ -1,0 +1,35 @@
+[
+  {
+    "movie_id": 48757,
+    "title": "Annamalai",
+    "year": "N/A",
+    "poster_url": "https://image.tmdb.org/t/p/w500/e96hSrmolvJ2SiaxlDNs3Ye2WEo.jpg",
+    "watched_at": "2026-11-01T19:21:58.715688",
+    "formatted_date": "01 Nov 2026",
+    "is_liked": false,
+    "rating": 4.5,
+    "watch_count": 2
+  },
+  {
+    "movie_id": 27205,
+    "title": "Inception",
+    "year": "2010",
+    "poster_url": "https://image.tmdb.org/t/p/w500/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+    "watched_at": "2026-10-25T19:42:00",
+    "formatted_date": "25 Oct 2026",
+    "is_liked": true,
+    "rating": 5.0,
+    "watch_count": 1
+  },
+  {
+    "movie_id": 155,
+    "title": "The Dark Knight",
+    "year": "2008",
+    "poster_url": "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+    "watched_at": "2026-10-24T21:10:00",
+    "formatted_date": "24 Oct 2026",
+    "is_liked": true,
+    "rating": 5.0,
+    "watch_count": 2
+  }
+]

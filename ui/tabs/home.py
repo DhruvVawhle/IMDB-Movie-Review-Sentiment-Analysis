@@ -5,10 +5,12 @@ Clicking any film card opens its full details on the Movies tab with 'Review thi
 """
 
 from typing import Any, Dict, List
+import random
 import streamlit as st
 
+from services.review_storage_service import get_recent_reviews, is_movie_watched
 from services.tmdb_service import get_movies_by_category_and_region, get_tmdb_api_key
-from ui.components import render_empty_state, set_active_tab
+from ui.components import render_empty_state, render_html, render_letterboxd_review_card, set_active_tab
 
 
 def get_badge_css_class(origin_label: str) -> str:
@@ -29,19 +31,26 @@ def render_movie_card(movie: Dict[str, Any], group_key: str, idx: int) -> None:
     title = movie.get("title", "Untitled")
     formatted_date = movie.get("formatted_date", "TBA")
     genres = movie.get("genres", [])
-    genres_str = " · ".join(genres[:2]) if genres else "Film"
+    genres_str = ", ".join(genres[:2]) if genres else "Film"
+    m_watched = is_movie_watched(movie.get("id"), title)
+    watched_badge_html = (
+        '<div class="cinesense-watched-tag">Watched</div>'
+        if m_watched
+        else ""
+    )
 
-    # Poster Frame with Overlaid Score Pill
+    # Poster Frame with Overlaid Score Pill and Watched Badge
     img_element = (
         f'<img src="{poster_url}" class="cinesense-poster-img" alt="{title}" loading="lazy" />'
         if poster_url
-        else '<div class="cinesense-poster-placeholder"><span>🎬</span> No Poster</div>'
+        else '<div class="cinesense-poster-placeholder"><span>Film Archive</span><span>No poster available</span></div>'
     )
 
     card_html = f"""
     <div class="cinesense-film-card">
         <div class="cinesense-poster-frame">
             {img_element}
+            {watched_badge_html}
             <div class="cinesense-poster-gradient"></div>
             <div class="cinesense-poster-badge-wrap">
                 <span class="cinesense-score-pill"><span style="color:var(--accent);">★</span> {score:.1f}</span>
@@ -51,17 +60,16 @@ def render_movie_card(movie: Dict[str, Any], group_key: str, idx: int) -> None:
             <div class="cinesense-film-title" title="{title}">{title}</div>
             <div class="cinesense-film-meta">
                 <span class="cinesense-film-date">{formatted_date}</span>
-                <span class="cinesense-film-dot">·</span>
-                <span class="cinesense-film-genre" title="{genres_str}">{genres_str}</span>
+                <span class="cinesense-genre-tag" title="{genres_str}">{genres_str}</span>
             </div>
         </div>
     </div>
     """
-    st.markdown(card_html, unsafe_allow_html=True)
+    render_html(card_html)
 
     # 44px Accessible CTA Button
     btn_key = f"home_card_{group_key}_{movie.get('id', idx)}_{idx}"
-    if st.button("View details →", key=btn_key, use_container_width=True):
+    if st.button("View film details", key=btn_key, use_container_width=True):
         st.session_state["selected_movie_data"] = movie
         st.session_state["selected_movie_id"] = movie.get("id")
         st.session_state["selected_movie_title"] = movie.get("title", "")
@@ -101,6 +109,36 @@ def render_home_tab() -> None:
             unsafe_allow_html=True,
         )
 
+    # Section 1 Data: In theatres now
+    now_playing_movies: List[Dict[str, Any]] = []
+    error_now_playing = False
+    with st.spinner("Fetching current theatrical releases..."):
+        try:
+            now_playing_movies = get_movies_by_category_and_region("now_playing", "All")
+        except Exception:
+            error_now_playing = True
+
+    if error_now_playing:
+        st.warning("TMDB request failed or timed out while fetching current theatrical releases.")
+        if st.button("Retry releases", key="retry_now_playing"):
+            st.cache_data.clear()
+            st.rerun()
+
+    # Section 2 Data: Coming soon
+    upcoming_movies: List[Dict[str, Any]] = []
+    error_upcoming = False
+    with st.spinner("Fetching upcoming releases..."):
+        try:
+            upcoming_movies = get_movies_by_category_and_region("upcoming", "All")
+        except Exception:
+            error_upcoming = True
+
+    if error_upcoming:
+        st.warning("TMDB request failed or timed out while fetching upcoming releases.")
+        if st.button("Retry upcoming", key="retry_upcoming"):
+            st.cache_data.clear()
+            st.rerun()
+
     # Editorial Intro Banner
     st.markdown(
         """
@@ -116,20 +154,15 @@ def render_home_tab() -> None:
         unsafe_allow_html=True,
     )
 
-    # Section 1: In theatres now
-    now_playing_movies: List[Dict[str, Any]] = []
-    error_now_playing = False
-    with st.spinner("Fetching current theatrical releases..."):
-        try:
-            now_playing_movies = get_movies_by_category_and_region("now_playing", "All")
-        except Exception:
-            error_now_playing = True
+    PAGE_SIZE = 5
 
-    if error_now_playing:
-        st.warning("TMDB request failed or timed out while fetching current theatrical releases.")
-        if st.button("Retry releases", key="retry_now_playing"):
-            st.cache_data.clear()
-            st.rerun()
+    # Section 1: In theatres now
+    total_now = len(now_playing_movies)
+    if total_now > 0:
+        offset_now = st.session_state.get("home_now_offset", 0) % total_now
+        displayed_now = [now_playing_movies[(offset_now + i) % total_now] for i in range(min(PAGE_SIZE, total_now))]
+    else:
+        displayed_now = []
 
     st.markdown(
         f"""
@@ -138,50 +171,126 @@ def render_home_tab() -> None:
                 <span class="cinesense-live-dot"></span>
                 <span class="cinesense-section-title" style="margin:0;">In theatres now</span>
             </div>
-            <span class="badge-neutral" style="font-size:0.75rem;">{len(now_playing_movies)} titles</span>
+            <span class="badge-neutral" style="font-size:0.75rem;">{total_now} titles</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     render_movie_grid(
-        now_playing_movies,
+        displayed_now,
         group_key="now_playing",
         empty_title="No films currently in theatres",
         empty_desc="No current theatrical releases were returned from TMDB.",
     )
 
     # Section 2: Coming soon
-    upcoming_movies: List[Dict[str, Any]] = []
-    error_upcoming = False
-    with st.spinner("Fetching upcoming releases..."):
-        try:
-            upcoming_movies = get_movies_by_category_and_region("upcoming", "All")
-        except Exception:
-            error_upcoming = True
-
-    if error_upcoming:
-        st.warning("TMDB request failed or timed out while fetching upcoming releases.")
-        if st.button("Retry upcoming", key="retry_upcoming"):
-            st.cache_data.clear()
-            st.rerun()
+    total_up = len(upcoming_movies)
+    if total_up > 0:
+        offset_up = st.session_state.get("home_upcoming_offset", 0) % total_up
+        displayed_up = [upcoming_movies[(offset_up + i) % total_up] for i in range(min(PAGE_SIZE, total_up))]
+    else:
+        displayed_up = []
 
     st.markdown(
         f"""
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2.25rem; margin-bottom:0.85rem; border-bottom:1px solid var(--line); padding-bottom:0.4rem;">
             <div style="display:flex; align-items:center; gap:0.4rem;">
-                <span style="font-size:1.1rem; line-height:1;">🗓️</span>
                 <span class="cinesense-section-title" style="margin:0;">Coming soon</span>
             </div>
-            <span class="badge-neutral" style="font-size:0.75rem;">{len(upcoming_movies)} titles</span>
+            <span class="badge-neutral" style="font-size:0.75rem;">{total_up} titles</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     render_movie_grid(
-        upcoming_movies,
+        displayed_up,
         group_key="upcoming",
         empty_title="No upcoming films found",
         empty_desc="No upcoming releases were returned from TMDB.",
     )
+
+    # Section 3: Letterboxd Community Reviews (Latest Premieres & Vintage Classics)
+    all_reviews = get_recent_reviews(limit=50)
+    if all_reviews:
+        st.markdown(
+            f"""
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2.5rem; margin-bottom:0.85rem; border-bottom:1px solid var(--line); padding-bottom:0.4rem;">
+                <div style="display:flex; align-items:center; gap:0.4rem;">
+                    <span class="cinesense-section-title" style="margin:0;">Recent Letterboxd Reviews</span>
+                </div>
+                <span class="badge-pos" style="font-size:0.75rem;">Community Activity</span>
+            </div>
+            <p style="font-family:var(--font-body); font-size:0.88rem; color:var(--muted); margin-bottom:0.75rem;">
+                Thoughts logged by film enthusiasts across contemporary premieres and vintage classics, calibrated with AI sentiment detection.
+            </p>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        filter_col, action_col = st.columns([2.7, 1.1], gap="small", vertical_alignment="center")
+        with filter_col:
+            era_filter = st.pills(
+                "Filter reviews by era",
+                options=["All cinema", "Latest releases (2020s)", "Golden classics (Pre-2000)"],
+                default="All cinema",
+                label_visibility="collapsed",
+                key="home_rev_era_pills",
+            )
+        with action_col:
+            if st.button("More reviews ↻", icon=":material/autorenew:", key="btn_cycle_home_reviews", use_container_width=True):
+                st.session_state["home_reviews_offset"] = st.session_state.get("home_reviews_offset", 0) + 4
+                st.rerun()
+
+        def is_latest(rev: Dict[str, Any]) -> bool:
+            try:
+                y = int(str(rev.get("movie_year", "0"))[:4])
+                return y >= 2020
+            except Exception:
+                return False
+
+        def is_classic(rev: Dict[str, Any]) -> bool:
+            try:
+                y = int(str(rev.get("movie_year", "2000"))[:4])
+                return 1900 <= y < 2000
+            except Exception:
+                return False
+
+        if era_filter == "Latest releases (2020s)":
+            filtered_reviews = [r for r in all_reviews if is_latest(r)]
+        elif era_filter == "Golden classics (Pre-2000)":
+            filtered_reviews = [r for r in all_reviews if is_classic(r)]
+        else:
+            # Interleave latest releases and timeless classics so both are prominently visible
+            latest = [r for r in all_reviews if is_latest(r)]
+            classics = [r for r in all_reviews if is_classic(r)]
+            others = [r for r in all_reviews if r not in latest and r not in classics]
+            interleaved = []
+            for i in range(max(len(latest), len(classics))):
+                if i < len(latest):
+                    interleaved.append(latest[i])
+                if i < len(classics):
+                    interleaved.append(classics[i])
+            interleaved.extend(others)
+            filtered_reviews = interleaved
+
+        # Dynamically rotate through reviews 4 at a time
+        PAGE_REVS = 4
+        total_revs = len(filtered_reviews)
+        if total_revs > 0:
+            rev_offset = st.session_state.get("home_reviews_offset", 0) % total_revs
+            displayed_reviews = [
+                filtered_reviews[(rev_offset + i) % total_revs]
+                for i in range(min(PAGE_REVS, total_revs))
+            ]
+        else:
+            displayed_reviews = []
+
+        # Render 4 reviews in balanced 2 columns
+        col_r1, col_r2 = st.columns(2, gap="medium")
+        for idx, rev in enumerate(displayed_reviews):
+            target_col = col_r1 if idx % 2 == 0 else col_r2
+            with target_col:
+                render_letterboxd_review_card(rev, key_prefix=f"home_rev_{idx}", show_film_tag=True)
+

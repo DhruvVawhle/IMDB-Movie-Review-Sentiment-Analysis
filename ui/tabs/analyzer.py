@@ -27,11 +27,21 @@ from services.tmdb_service import (
     normalize_and_classify_movie,
     search_tmdb_movies,
 )
+from services.review_storage_service import (
+    get_movie_review_stats,
+    get_reviews_for_movie,
+    get_watched_movie,
+    save_review,
+)
 from ui.components import (
+    format_letterboxd_stars,
     plot_lime_feature_bars,
     plot_probability_meter,
     render_context_intelligence_card,
     render_empty_state,
+    render_html,
+    render_letterboxd_review_card,
+    render_letterboxd_watched_actions,
     set_active_tab,
 )
 
@@ -158,15 +168,23 @@ def render_analyzer_tab() -> None:
         show_search = st.session_state.get("show_analyzer_film_search", False) or (selected_movie is None)
 
         if selected_movie and not st.session_state.get("show_analyzer_film_search", False):
-            # Render Selected Film Strip
-            poster_url = selected_movie.get("poster")
+            # Selected Film Strip Card
+            poster_url = selected_movie.get("poster") or selected_movie.get("poster_url", "")
             title = selected_movie.get("title", "Untitled")
-            year = selected_movie.get("year", "N/A")
+            year = selected_movie.get("year") or (selected_movie.get("release_date") or "")[:4] or "N/A"
+            origin_badge = selected_movie.get("origin_badge", selected_movie.get("origin_label"))
+            origin_reason = selected_movie.get("origin_badge_title", selected_movie.get("origin_reason", f"{origin_badge} film" if origin_badge else ""))
+
+            badge_html = (
+                f'<span class="cinesense-spotlight-pill" title="{origin_reason}">{origin_badge}</span>'
+                if origin_badge
+                else ""
+            )
 
             thumb_html = (
-                f'<img src="{poster_url}" class="cinesense-film-strip-thumb" alt="{title}" />'
+                f'<img src="{poster_url}" class="cinesense-film-strip-thumb" alt="{title}" loading="lazy" decoding="async" />'
                 if poster_url
-                else '<div class="cinesense-film-strip-thumb-placeholder">🎬</div>'
+                else '<div class="cinesense-film-strip-thumb-placeholder">Film</div>'
             )
 
             strip_html = f"""
@@ -174,23 +192,29 @@ def render_analyzer_tab() -> None:
                 <div class="cinesense-film-strip-info">
                     {thumb_html}
                     <div>
-                        <span class="cinesense-film-strip-title">{title}</span>
-                        <span class="cinesense-film-strip-year">({year})</span>
+                        <div style="display:flex; align-items:baseline; gap:0.45rem; flex-wrap:wrap;">
+                            <span class="cinesense-film-strip-title">{title}</span>
+                            <span class="cinesense-film-strip-year">({year})</span>
+                            {badge_html}
+                        </div>
                     </div>
                 </div>
             </div>
             """
             st.markdown(strip_html, unsafe_allow_html=True)
 
-            act_col1, act_col2 = st.columns([1, 1])
+            act_col1, act_col2 = st.columns([1, 1], gap="small", vertical_alignment="center")
             with act_col1:
-                if st.button("Change film", key="strip_change_film", use_container_width=True):
+                if st.button("Change film", icon=":material/swap_horiz:", key="strip_change_film", use_container_width=True):
                     st.session_state["show_analyzer_film_search"] = True
                     st.rerun()
             with act_col2:
-                if st.button("Clear film", key="strip_clear_film", use_container_width=True):
+                if st.button("Clear film", icon=":material/close:", key="strip_clear_film", use_container_width=True):
                     _clear_selected_film()
                     st.rerun()
+
+            # Dynamic Watched Diary actions for this film (with status bar)
+            render_letterboxd_watched_actions(selected_movie, key_prefix="analyzer_strip", show_status_bar=True)
 
         elif api_key:
             # Render "Choose a film" Search Box
@@ -242,16 +266,18 @@ def render_analyzer_tab() -> None:
                             r_title = norm["title"]
                             r_year = norm["release_year"]
                             r_poster = norm["poster_url"]
+                            r_badge = norm.get("origin_badge", norm.get("origin_label", "Unclassified"))
+                            r_reason = norm.get("origin_badge_title", norm.get("origin_reason", f"{r_badge} film"))
 
                             row_thumb_html = (
                                 f'<img src="{r_poster}" class="cinesense-search-thumb" alt="{r_title}" />'
                                 if r_poster
-                                else '<div class="cinesense-search-thumb-placeholder">🎬</div>'
+                                else '<div class="cinesense-search-thumb-placeholder">Film</div>'
                             )
 
                             r_col_info, r_col_btn = st.columns([4.2, 1.2])
                             with r_col_info:
-                                st.markdown(
+                                render_html(
                                     f"""
                                     <div class="cinesense-search-row">
                                         <div class="cinesense-search-row-left">
@@ -264,8 +290,7 @@ def render_analyzer_tab() -> None:
                                             </div>
                                         </div>
                                     </div>
-                                    """,
-                                    unsafe_allow_html=True,
+                                    """
                                 )
                             with r_col_btn:
                                 if st.button("Select", key=f"sel_search_res_{m_id}_{idx}", use_container_width=True):
@@ -351,6 +376,7 @@ def render_analyzer_tab() -> None:
             with chip_cols[idx]:
                 if st.button(label, key=f"chip_{idx}", use_container_width=True):
                     st.session_state["review_text_input"] = text
+                    st.session_state["analyzer_textarea"] = text
                     st.session_state["has_run_analysis"] = True
                     st.rerun()
 
@@ -367,10 +393,11 @@ def render_analyzer_tab() -> None:
             unsafe_allow_html=True,
         )
 
-        current_text = st.session_state.get("review_text_input", "")
+        if "analyzer_textarea" not in st.session_state:
+            st.session_state["analyzer_textarea"] = st.session_state.get("review_text_input", "")
+
         review_input = st.text_area(
             textarea_label,
-            value=current_text,
             height=165,
             placeholder="Type or paste any movie review here...",
             label_visibility="collapsed",
@@ -401,6 +428,7 @@ def render_analyzer_tab() -> None:
         with btn_col2:
             if st.button("Clear text", use_container_width=True):
                 st.session_state["review_text_input"] = ""
+                st.session_state["analyzer_textarea"] = ""
                 st.session_state["has_run_analysis"] = False
                 st.rerun()
 
@@ -647,6 +675,71 @@ def render_analyzer_tab() -> None:
             )
         render_context_intelligence_card(context_data)
 
+        # -------------------------------------------------------------
+        # Letterboxd Community Review Publisher Card
+        # -------------------------------------------------------------
+        with st.expander("Publish this review to Letterboxd community feed", expanded=False):
+            st.markdown(
+                '<div style="font-family:var(--font-body); font-size:0.85rem; color:var(--muted); margin-bottom:0.75rem;">'
+                'Save this analyzed review to the persistent community database. It will appear formatted in Letterboxd film-critic '
+                'editorial style with your star rating, author monogram, and calibrated AI sentiment metrics.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            col_a1, col_a2 = st.columns([1.5, 1])
+            with col_a1:
+                pub_author = st.text_input(
+                    "Reviewer Name / Handle",
+                    value=st.session_state.get("user_author_name", "Film Critic"),
+                    key="analyzer_pub_author",
+                )
+            with col_a2:
+                default_stars = 4.5 if is_pos else 2.0
+                rating_options = [5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0]
+                pub_rating = st.selectbox(
+                    "Star Rating",
+                    options=rating_options,
+                    format_func=lambda r: f"{format_letterboxd_stars(r)} ({r}★)",
+                    index=rating_options.index(default_stars) if default_stars in rating_options else 1,
+                    key="analyzer_pub_rating",
+                )
+
+            col_m1, col_m2 = st.columns([1, 1])
+            with col_m1:
+                pub_liked = st.checkbox("Liked film", value=is_pos, key="analyzer_pub_liked")
+            with col_m2:
+                pub_spoiler = st.checkbox("Contains spoilers", value=False, key="analyzer_pub_spoiler")
+
+            m_target_id = selected_movie.get("id") if selected_movie else "general"
+            m_target_title = selected_movie.get("title") if selected_movie else "General Film Review"
+            m_target_year = selected_movie.get("year", "N/A") if selected_movie else ""
+            m_target_poster = selected_movie.get("poster", "") if selected_movie else ""
+
+            if st.button("Publish to community feed", type="primary", use_container_width=True, key="analyzer_btn_publish_feed"):
+                clean_handle = (
+                    f"@{pub_author.lower().replace(' ', '')}"
+                    if pub_author and not pub_author.startswith("@")
+                    else pub_author
+                )
+                save_review(
+                    movie_id=m_target_id,
+                    movie_title=m_target_title,
+                    movie_year=m_target_year,
+                    movie_poster=m_target_poster,
+                    author_name=pub_author or "Anonymous Cinephile",
+                    author_handle=clean_handle or "@cinephile",
+                    rating=pub_rating,
+                    is_liked=pub_liked,
+                    contains_spoilers=pub_spoiler,
+                    review_text=review_input.strip(),
+                    sentiment_label=label,
+                    sentiment_confidence=conf_pct,
+                    model_used=valid_models[selected_model_id],
+                )
+                st.session_state["user_author_name"] = pub_author
+                st.toast("Published to Letterboxd community store!", icon="🎬")
+                st.rerun()
+
         # Session review history block
         _render_session_history_block(selected_movie)
 
@@ -687,50 +780,57 @@ def _record_session_history(
 
 
 def _render_session_history_block(selected_movie: Optional[Dict[str, Any]]) -> None:
-    """Render the session history list and one-line summary below the results panel."""
-    if "session_history_store" not in st.session_state:
-        return
+    """Render community Letterboxd reviews and session log."""
+    m_id = selected_movie.get("id") if selected_movie else None
+    m_title = selected_movie.get("title") if selected_movie else None
+    community_revs = get_reviews_for_movie(m_id, m_title)
 
     key = _get_history_key(selected_movie)
-    history: List[Dict[str, Any]] = st.session_state["session_history_store"].get(key, [])
+    session_history: List[Dict[str, Any]] = st.session_state.get("session_history_store", {}).get(key, [])
 
-    if not history:
+    if not community_revs and not session_history:
         return
 
-    total = len(history)
-    pos_count = sum(1 for h in history if h.get("is_positive"))
-    neg_count = sum(1 for h in history if not h.get("is_positive"))
+    tab_labels = []
+    if community_revs:
+        film_tag = f" for {selected_movie['title']}" if selected_movie else ""
+        tab_labels.append(f"Letterboxd Reviews{film_tag} ({len(community_revs)})")
+    if session_history:
+        tab_labels.append(f"Session Log ({len(session_history)})")
 
-    count_str = f"{total} {'reviews' if total != 1 else 'review'}"
-    summary_text = f"{count_str}: {pos_count} Positive, {neg_count} Negative"
-
-    film_label = f" for {selected_movie['title']}" if selected_movie else ""
+    if not tab_labels:
+        return
 
     st.markdown(
-        f"""
-        <div class="cinesense-history-box">
-            <div class="cinesense-section-title" style="font-size:1.05rem; margin-top:0.5rem; margin-bottom:0.25rem;">
-                Session review history{film_label}
-            </div>
-            <div class="cinesense-history-summary">
-                {summary_text}
-            </div>
-        </div>
-        """,
+        '<div class="cinesense-section-title" style="font-size:1.05rem; margin-top:1.5rem; margin-bottom:0.5rem;">'
+        'Community & Session Reviews'
+        '</div>',
         unsafe_allow_html=True,
     )
 
-    for item in reversed(history):
-        b_class = "badge-pos" if item.get("is_positive") else "badge-neg"
-        st.markdown(
-            f"""
-            <div class="cinesense-history-item">
-                <span class="cinesense-history-snippet" title="{item['snippet']}">"{item['snippet']}"</span>
-                <div class="cinesense-history-meta">
-                    <span class="{b_class}">{item['verdict']}</span>
-                    <span style="font-family:var(--font-mono); font-size:0.78rem; color:var(--muted);">{item['confidence']:.1f}%</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    history_tabs = st.tabs(tab_labels)
+    t_idx = 0
+
+    if community_revs:
+        with history_tabs[t_idx]:
+            for idx, rev in enumerate(community_revs[:6]):
+                render_letterboxd_review_card(rev, key_prefix=f"analyzer_comm_{idx}")
+        t_idx += 1
+
+    if session_history:
+        with history_tabs[t_idx]:
+            for item in reversed(session_history):
+                b_class = "badge-pos" if item.get("is_positive") else "badge-neg"
+                st.markdown(
+                    f"""
+                    <div class="cinesense-history-item">
+                        <span class="cinesense-history-snippet" title="{item['snippet']}">"{item['snippet']}"</span>
+                        <div class="cinesense-history-meta">
+                            <span class="{b_class}">{item['verdict']}</span>
+                            <span style="font-family:var(--font-mono); font-size:0.78rem; color:var(--muted);">{item['confidence']:.1f}%</span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+

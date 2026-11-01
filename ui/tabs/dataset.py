@@ -100,9 +100,9 @@ def render_dataset_tab() -> None:
     )
 
     # 2. Pagination bar: Previous, "Page X of Y", Next, and CSV Download in one row
-    col_prev, col_info, col_next, col_download = st.columns([1, 1.8, 1, 2.5])
+    col_prev, col_info, col_next, col_download = st.columns([1.1, 1.6, 1.1, 2.5])
     with col_prev:
-        if st.button("← Previous", disabled=(current_page <= 1), use_container_width=True):
+        if st.button("Previous page", disabled=(current_page <= 1), use_container_width=True):
             st.session_state["dataset_page"] = max(1, current_page - 1)
             st.rerun()
     with col_info:
@@ -113,7 +113,7 @@ def render_dataset_tab() -> None:
             unsafe_allow_html=True,
         )
     with col_next:
-        if st.button("Next →", disabled=(current_page >= total_pages), use_container_width=True):
+        if st.button("Next page", disabled=(current_page >= total_pages), use_container_width=True):
             st.session_state["dataset_page"] = min(total_pages, current_page + 1)
             st.rerun()
     with col_download:

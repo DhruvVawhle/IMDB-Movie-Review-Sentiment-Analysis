@@ -26,3 +26,7 @@ venv.bak/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Agent skills & runtime lockfiles
+.agents/
+skills-lock.json

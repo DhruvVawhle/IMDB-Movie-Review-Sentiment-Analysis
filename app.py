@@ -33,9 +33,6 @@ st.set_page_config(
 
 
 def main() -> None:
-    # Preload model artifacts into st.cache_resource so first click is instantaneous
-    preload_all_models()
-
     # 1. Inject single unified CSS block with Google Fonts & design tokens
     inject_css()
 

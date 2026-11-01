@@ -7,6 +7,7 @@ and a 'Review this film' action that loads the film context into the analyzer wi
 """
 
 from typing import Any, Dict, List, Optional
+import random
 import streamlit as st
 
 from services.llm_context_service import analyze_movie_context_cached
@@ -17,7 +18,16 @@ from services.tmdb_service import (
     normalize_and_classify_movie,
     search_tmdb_movies,
 )
-from ui.components import render_context_intelligence_card, render_empty_state, set_active_tab
+from services.review_storage_service import is_movie_watched
+from ui.components import (
+    render_context_intelligence_card,
+    render_empty_state,
+    render_html,
+    render_letterboxd_reviews_section,
+    render_letterboxd_watched_actions,
+    render_watched_movies_grid,
+    set_active_tab,
+)
 
 
 def select_movie_and_open_analyzer(movie: Dict[str, Any]) -> None:
@@ -113,7 +123,7 @@ def render_movies_tab() -> None:
                 raw_results = search_tmdb_movies(active_search, api_key)
                 # Fetch details and classify origin for top search results
                 classified_results = []
-                for item in raw_results[:12]:
+                for item in raw_results[:18]:
                     m_id = item.get("id")
                     details = fetch_movie_details(m_id, api_key) if m_id else None
                     classified_results.append(normalize_and_classify_movie(item, details=details))
@@ -132,30 +142,47 @@ def render_movies_tab() -> None:
         # Default browse view: now_playing list classified by origin
         try:
             with st.spinner("Fetching theatrical releases..."):
-                movies_list = get_movies_by_category_and_region("now_playing", "All")
+                np_movies = get_movies_by_category_and_region("now_playing", "All")
+                up_movies = get_movies_by_category_and_region("upcoming", "All")
+                # Combine now playing and upcoming for a deep pool to cycle through
+                seen_ids = set()
+                combined = []
+                for m in np_movies + up_movies:
+                    if m.get("id") not in seen_ids:
+                        seen_ids.add(m.get("id"))
+                        combined.append(m)
+                movies_list = combined if combined else np_movies
         except Exception:
             movies_list = []
+
+    # Display exactly 9 movies at a time, cycling as the user clicks the Movies tab
+    PAGE_SIZE = 9
+    total_available = len(movies_list)
+
+    if not active_search and total_available > 0:
+        browse_offset = st.session_state.get("movies_browse_offset", 0) % total_available
+        displayed_movies = []
+        for i in range(min(PAGE_SIZE, total_available)):
+            idx = (browse_offset + i) % total_available
+            displayed_movies.append(movies_list[idx])
+    else:
+        displayed_movies = movies_list[:PAGE_SIZE]
 
     # Check if a specific movie was selected from Home tab or another source
     selected_movie_data = st.session_state.get("selected_movie_data")
     if selected_movie_data:
-        # Ensure it appears at the front of movies_list
-        if not any(m.get("id") == selected_movie_data.get("id") for m in movies_list):
-            movies_list = [selected_movie_data] + movies_list
-        selected_idx = 0
+        matched_idx = next((i for i, m in enumerate(displayed_movies) if m.get("id") == selected_movie_data.get("id")), None)
+        if matched_idx is not None:
+            selected_idx = matched_idx
+            selected_movie = displayed_movies[selected_idx]
+        else:
+            selected_idx = 0
+            selected_movie = selected_movie_data
     else:
         selected_idx = st.session_state.get("selected_movie_idx", 0)
-        if selected_idx >= len(movies_list):
+        if selected_idx >= len(displayed_movies):
             selected_idx = 0
-
-    if not movies_list:
-        render_empty_state(
-            "No films available",
-            "Unable to retrieve titles from TMDB. Please verify your TMDB_API_KEY.",
-        )
-        return
-
-    selected_movie = movies_list[selected_idx]
+        selected_movie = displayed_movies[selected_idx]
     detail_col, grid_col = st.columns([1.1, 1.4], gap="large")
 
     with detail_col:
@@ -166,7 +193,7 @@ def render_movies_tab() -> None:
             st.markdown(
                 f"""
                 <div class="cinesense-detail-poster-wrap">
-                    <img src="{selected_movie['poster_url']}" class="cinesense-detail-poster-img" alt="{selected_movie.get('title')}" />
+                    <img src="{selected_movie['poster_url']}" class="cinesense-detail-poster-img" alt="{selected_movie.get('title')}" loading="lazy" decoding="async" />
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -175,7 +202,7 @@ def render_movies_tab() -> None:
             st.markdown(
                 """
                 <div class="cinesense-detail-poster-wrap">
-                    <div class="cinesense-poster-placeholder" style="height:100%;"><span>🎬</span> No Poster</div>
+                    <div class="cinesense-poster-placeholder" style="height:100%;"><span>Film</span><span>No poster available</span></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -194,7 +221,7 @@ def render_movies_tab() -> None:
         st.markdown(f'<div style="margin-bottom:0.75rem;">{genres_badges}</div>', unsafe_allow_html=True)
 
         # TMDB Audience Score (visually distinct from model outputs)
-        st.markdown(
+        render_html(
             f"""
             <div class="cinesense-card" style="padding: 0.65rem 0.85rem; margin-bottom: 0.85rem;">
                 <div style="font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; color:var(--muted); letter-spacing:0.04em;">
@@ -209,9 +236,11 @@ def render_movies_tab() -> None:
                     </span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
+
+        # Dynamic Letterboxd Watched Diary Actions (Stored persistently)
+        render_letterboxd_watched_actions(selected_movie, key_prefix="mov_detail")
 
         # Overview synopsis
         st.markdown(
@@ -222,7 +251,7 @@ def render_movies_tab() -> None:
         )
 
         # AI Cinematic Context Profile Expander
-        with st.expander("✨ AI Cinematic Context Profile", expanded=False):
+        with st.expander("Cinematic context profile", expanded=False):
             with st.spinner("Analyzing film context & reception..."):
                 movie_ctx = analyze_movie_context_cached(
                     selected_movie.get("overview", ""),
@@ -243,59 +272,133 @@ def render_movies_tab() -> None:
         )
 
         # Primary Action Button: Review this film
-        if st.button("Review this film →", type="primary", use_container_width=True, key="btn_review_this_film"):
+        if st.button("Review this film", type="primary", use_container_width=True, key="btn_review_this_film"):
             select_movie_and_open_analyzer(selected_movie)
 
     with grid_col:
-        st.markdown(
-            '<div class="cinesense-section-title" style="margin-top:0;">Browse titles</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            '<div class="cinesense-takeaway">Select any film below to view its details and launch review analysis.</div>',
-            unsafe_allow_html=True,
-        )
+        subtab_browse, subtab_diary = st.tabs(["Browse titles", "Watched diary"])
 
-        # 3-column poster grid
-        n_cols = 3
-        rows = [movies_list[i : i + n_cols] for i in range(0, len(movies_list), n_cols)]
-        for row_idx, row in enumerate(rows):
-            grid_cols = st.columns(n_cols)
-            for col_idx, movie in enumerate(row):
-                actual_idx = row_idx * n_cols + col_idx
-                with grid_cols[col_idx]:
-                    m_title = movie.get("title", "Untitled")
-                    m_score = movie.get("audience_score", 0.0)
-                    m_year = movie.get("release_year") or "N/A"
-                    m_poster = movie.get("poster_url", "")
-                    m_img = (
-                        f'<img src="{m_poster}" class="cinesense-poster-img" alt="{m_title}" loading="lazy" />'
-                        if m_poster
-                        else '<div class="cinesense-poster-placeholder"><span>🎬</span> No Poster</div>'
-                    )
-
+        with subtab_browse:
+            # Header with film count, Next 9, and Shuffle buttons
+            hdr_c1, hdr_c2, hdr_c3 = st.columns([1.8, 1.1, 1.1], gap="small", vertical_alignment="center")
+            with hdr_c1:
+                if not active_search and total_available > PAGE_SIZE:
+                    batch_num = (st.session_state.get("movies_browse_offset", 0) // PAGE_SIZE) % max(1, (total_available + PAGE_SIZE - 1) // PAGE_SIZE) + 1
+                    total_batches = max(1, (total_available + PAGE_SIZE - 1) // PAGE_SIZE)
                     st.markdown(
-                        f"""
-                        <div class="cinesense-film-card">
-                            <div class="cinesense-poster-frame">
-                                {m_img}
-                                <div class="cinesense-poster-gradient"></div>
-                                <div class="cinesense-poster-badge-wrap">
-                                    <span class="cinesense-score-pill"><span style="color:var(--accent);">★</span> {m_score:.1f}</span>
-                                </div>
-                            </div>
-                            <div class="cinesense-card-content">
-                                <div class="cinesense-film-title" title="{m_title}">{m_title}</div>
-                                <div class="cinesense-film-meta">
-                                    <span class="cinesense-film-date">{m_year}</span>
-                                </div>
-                            </div>
-                        </div>
-                        """,
+                        f'<div class="cinesense-takeaway" style="margin:0;">Showing <strong>9</strong> featured films &bull; Batch {batch_num} of {total_batches}</div>',
                         unsafe_allow_html=True,
                     )
-                    if st.button("Inspect film →", key=f"sel_mov_{actual_idx}", use_container_width=True):
-                        st.session_state["selected_movie_idx"] = actual_idx
-                        st.session_state["selected_movie_data"] = movie
+                else:
+                    st.markdown(
+                        f'<div class="cinesense-takeaway" style="margin:0;">Showing top <strong>{len(displayed_movies)}</strong> films</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            with hdr_c2:
+                if not active_search and total_available > PAGE_SIZE:
+                    if st.button("Next 9 ↻", icon=":material/autorenew:", key="btn_cycle_titles", use_container_width=True):
+                        st.session_state["movies_browse_offset"] = (st.session_state.get("movies_browse_offset", 0) + PAGE_SIZE) % total_available
+                        st.session_state["selected_movie_idx"] = 0
+                        st.session_state["selected_movie_data"] = None
                         st.rerun()
-                    st.write("")
+
+            with hdr_c3:
+                if not active_search and total_available > PAGE_SIZE:
+                    if st.button("Shuffle 🔀", icon=":material/shuffle:", key="btn_shuffle_titles", use_container_width=True):
+                        st.session_state["movies_browse_offset"] = random.randint(0, max(0, total_available - 1))
+                        st.session_state["selected_movie_idx"] = 0
+                        st.session_state["selected_movie_data"] = None
+                        st.rerun()
+
+            st.write("")
+
+            # Exactly 3x3 poster grid (9 movies)
+            n_cols = 3
+            rows = [displayed_movies[i : i + n_cols] for i in range(0, len(displayed_movies), n_cols)]
+            for row_idx, row in enumerate(rows):
+                grid_cols = st.columns(n_cols)
+                for col_idx, movie in enumerate(row):
+                    actual_idx = row_idx * n_cols + col_idx
+                    with grid_cols[col_idx]:
+                        m_title = movie.get("title", "Untitled")
+                        m_score = movie.get("audience_score", 0.0)
+                        m_year = movie.get("release_year") or "N/A"
+                        m_poster = movie.get("poster_url", "")
+                        m_watched = is_movie_watched(movie.get("id"), m_title)
+                        watched_badge = (
+                            '<div class="cinesense-watched-poster-badge"><span style="font-weight:700;">✓</span> Watched</div>'
+                            if m_watched
+                            else ""
+                        )
+                        m_img = (
+                            f'<img src="{m_poster}" class="cinesense-poster-img" alt="{m_title}" loading="lazy" decoding="async" />'
+                            if m_poster
+                            else '<div class="cinesense-poster-placeholder"><span>Film</span><span>No Poster</span></div>'
+                        )
+
+                        is_active_card = (actual_idx == selected_idx) or (movie.get("id") == selected_movie.get("id"))
+                        active_style = "border: 2px solid var(--accent); box-shadow: 0 0 8px rgba(210, 153, 34, 0.25);" if is_active_card else ""
+
+                        render_html(
+                            f"""
+                            <div class="cinesense-film-card" style="{active_style}">
+                                <div class="cinesense-poster-frame">
+                                    {m_img}
+                                    {watched_badge}
+                                    <div class="cinesense-poster-gradient"></div>
+                                    <div class="cinesense-poster-badge-wrap">
+                                        <span class="cinesense-score-pill"><span style="color:var(--accent);">★</span> {m_score:.1f}</span>
+                                    </div>
+                                </div>
+                                <div class="cinesense-card-content">
+                                    <div class="cinesense-film-title" title="{m_title}">{m_title}</div>
+                                    <div class="cinesense-film-meta">
+                                        <span class="cinesense-film-date">{m_year}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            """
+                        )
+                        btn_label = "Inspecting" if is_active_card else "Inspect film"
+                        if st.button(btn_label, key=f"sel_mov_{actual_idx}", use_container_width=True):
+                            st.session_state["selected_movie_idx"] = actual_idx
+                            st.session_state["selected_movie_data"] = movie
+                            st.rerun()
+                        st.write("")
+
+            # Bottom pagination controls to easily refresh or step through batches
+            if not active_search and total_available > PAGE_SIZE:
+                st.markdown('<div style="margin-top:0.5rem; border-top:1px solid var(--line); padding-top:0.75rem;"></div>', unsafe_allow_html=True)
+                pg_c1, pg_c2, pg_c3 = st.columns([1.2, 1.6, 1.2], gap="small", vertical_alignment="center")
+                with pg_c1:
+                    if st.button("⬅ Previous 9", key="btn_prev_movies", use_container_width=True):
+                        st.session_state["movies_browse_offset"] = (st.session_state.get("movies_browse_offset", 0) - PAGE_SIZE) % total_available
+                        st.session_state["selected_movie_idx"] = 0
+                        st.session_state["selected_movie_data"] = None
+                        st.rerun()
+                with pg_c2:
+                    st.markdown(
+                        f'<div style="text-align:center; font-family:var(--font-mono); font-size:0.78rem; color:var(--muted); line-height:2.2;">'
+                        f'Batch {batch_num} of {total_batches} &bull; {total_available} titles'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with pg_c3:
+                    if st.button("Next 9 ➔", key="btn_next_movies", use_container_width=True):
+                        st.session_state["movies_browse_offset"] = (st.session_state.get("movies_browse_offset", 0) + PAGE_SIZE) % total_available
+                        st.session_state["selected_movie_idx"] = 0
+                        st.session_state["selected_movie_data"] = None
+                        st.rerun()
+
+        with subtab_diary:
+            render_watched_movies_grid()
+
+    # Full Letterboxd-Style Community Reviews and Discussion Section
+    st.markdown('<div style="margin-top:2.5rem; border-top:1px solid var(--line); padding-top:1.5rem;"></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="cinesense-section-title" style="margin-bottom:0.35rem;">Community Reviews & Discussions</div>',
+        unsafe_allow_html=True,
+    )
+    render_letterboxd_reviews_section(selected_movie, allow_compose=True)
+

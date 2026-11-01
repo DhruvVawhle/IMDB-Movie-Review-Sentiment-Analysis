@@ -15,6 +15,12 @@ DATASET_CANDIDATE_PATHS = [
     "IMDB Dataset.csv",
 ]
 
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+
 _CACHED_DF: Optional[pd.DataFrame] = None
 _CACHED_STATS: Optional[Dict[str, Any]] = None
 
@@ -38,14 +44,31 @@ def validate_dataset_schema(df: pd.DataFrame) -> Tuple[bool, str]:
     return True, "Schema valid."
 
 
+def _parse_and_prepare_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Standardize sentiment and compute word/character counts cleanly and rapidly."""
+    import re
+    df["sentiment_clean"] = df["sentiment"].astype(str).str.strip().str.lower()
+    df["label"] = df["sentiment_clean"].map({"positive": 1, "negative": 0})
+
+    html_regex = re.compile(r"<[^>]+>")
+    reviews = df["review"].astype(str).tolist()
+    if "word_count" not in df.columns:
+        df["word_count"] = [len(html_regex.sub(" ", r).split()) for r in reviews]
+    if "char_count" not in df.columns:
+        df["char_count"] = [len(html_regex.sub(" ", r)) for r in reviews]
+    return df
+
+
 def load_imdb_dataset(limit: Optional[int] = None) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
     """
     Load the IMDB dataset into a pandas DataFrame.
-    Caches the full dataset in memory once loaded.
+    Caches the dataset in memory so subsequent views and tab switches are instantaneous.
     """
     global _CACHED_DF
-    if _CACHED_DF is not None and limit is None:
-        return _CACHED_DF.copy(), None
+    if _CACHED_DF is not None:
+        if limit is None:
+            return _CACHED_DF.copy(), None
+        return _CACHED_DF.head(limit).copy(), None
 
     dataset_path = resolve_dataset_path()
     if not dataset_path:
@@ -55,28 +78,26 @@ def load_imdb_dataset(limit: Optional[int] = None) -> Tuple[Optional[pd.DataFram
         )
 
     try:
+        # If requesting a small subset before full dataset is loaded, load only required rows
+        if limit is not None and limit < 5000:
+            df_sub = pd.read_csv(dataset_path, nrows=limit)
+            valid, msg = validate_dataset_schema(df_sub)
+            if not valid:
+                return None, msg
+            df_sub = _parse_and_prepare_df(df_sub)
+            return df_sub, None
+
         df = pd.read_csv(dataset_path)
         valid, msg = validate_dataset_schema(df)
         if not valid:
             return None, msg
 
-        # Standardize sentiment column
-        df["sentiment_clean"] = df["sentiment"].astype(str).str.strip().str.lower()
-        df["label"] = df["sentiment_clean"].map({"positive": 1, "negative": 0})
-        
-        # Calculate text statistics after stripping HTML tags (<br />)
-        import re
-        html_regex = re.compile(r"<[^>]+>")
-        if "word_count" not in df.columns:
-            df["word_count"] = df["review"].astype(str).apply(lambda x: len(html_regex.sub(" ", x).split()))
-        if "char_count" not in df.columns:
-            df["char_count"] = df["review"].astype(str).apply(lambda x: len(html_regex.sub(" ", x)))
+        df = _parse_and_prepare_df(df)
+        _CACHED_DF = df
 
         if limit is None:
-            _CACHED_DF = df
             return _CACHED_DF.copy(), None
-        else:
-            return df.head(limit).copy(), None
+        return _CACHED_DF.head(limit).copy(), None
 
     except Exception as exc:
         return None, f"Failed to load dataset: {str(exc)}"

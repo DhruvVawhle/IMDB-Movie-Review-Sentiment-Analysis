@@ -28,7 +28,7 @@ def render_overview_tab() -> None:
     # Single Call-to-Action button
     col_cta, _ = st.columns([1.5, 4])
     with col_cta:
-        if st.button("Analyze a review →", type="primary", use_container_width=True):
+        if st.button("Analyze a review", type="primary", use_container_width=True):
             set_active_tab("Analyzer")
             st.rerun()
 

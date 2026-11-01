@@ -258,19 +258,11 @@ def normalize_and_classify_movie(
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_movies_by_category_and_region(
-    category: str,
-    region_filter: str,
-) -> List[Dict[str, Any]]:
+def fetch_all_classified_movies_for_category(category: str) -> List[Dict[str, Any]]:
     """
-    Retrieve, classify, and filter movies for 'now_playing' or 'upcoming'.
-    - Fetches US and IN lists, plus Indian upcoming discover query if upcoming.
-    - Removes duplicates by TMDB id across all lists.
-    - Fetches full details (/movie/{id}) for each film (cached) to classify origin.
-    - Filters by classify_origin label ONLY:
-      * 'Hollywood' -> origin_label == 'Hollywood'
-      * 'Indian' -> origin_label == 'Indian'
-      * 'All' -> shows all films (including 'International' and 'Unclassified').
+    Fetch and classify all raw movies for a given category ('now_playing' or 'upcoming').
+    Deduplicates across US, IN, and discover queries and runs concurrent details classification.
+    Cached for 1 hour so region filtering in the UI is instantaneous.
     """
     api_key = get_tmdb_api_key()
     if not api_key:
@@ -314,8 +306,25 @@ def get_movies_by_category_and_region(
     # Keep stable order roughly matching popularity / source list order
     id_order = {item["id"]: idx for idx, item in enumerate(all_raw)}
     classified_movies.sort(key=lambda m: id_order.get(m["id"], 999999))
+    return classified_movies
 
-    # 4. Filter strictly by classify_origin
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_movies_by_category_and_region(
+    category: str,
+    region_filter: str,
+) -> List[Dict[str, Any]]:
+    """
+    Retrieve, classify, and filter movies for 'now_playing' or 'upcoming'.
+    Uses cached movie collection to make region switching instant.
+    - Filters by classify_origin label ONLY:
+      * 'Hollywood' -> origin_label == 'Hollywood'
+      * 'Indian' -> origin_label == 'Indian'
+      * 'All' -> shows all films (including 'International' and 'Unclassified').
+    """
+    classified_movies = fetch_all_classified_movies_for_category(category)
+
+    # Filter strictly by classify_origin
     if region_filter == "Hollywood":
         return [m for m in classified_movies if m.get("origin_label") == "Hollywood"]
     elif region_filter == "Indian":
