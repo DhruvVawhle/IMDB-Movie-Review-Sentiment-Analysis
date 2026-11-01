@@ -721,13 +721,14 @@ def inject_css() -> None:
         display: block;
     }}
 
-    /* Sticky Film Overview Column on Movies Tab */
-    @media (min-width: 900px) {{
-        div[data-testid="column"]:has(.cinesense-detail-poster-wrap) {{
-            position: sticky !important;
-            top: 1.5rem !important;
-            align-self: flex-start !important;
-        }}
+    /* Cinema Spotlight Hero Card on Movies Tab */
+    .cinesense-movie-hero-card {{
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1.25rem;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     }}
 
     /* Cinema Spotlight Card (Film Context in Analyzer) */

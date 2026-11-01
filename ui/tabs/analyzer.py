@@ -261,13 +261,15 @@ def render_analyzer_tab() -> None:
                         for idx, item in enumerate(raw_results[:8]):
                             m_id = item.get("id")
                             details = fetch_movie_details(m_id, api_key) if m_id else None
-                            norm = normalize_and_classify_movie(item, details=details)
+                            norm = normalize_and_classify_movie(item, details=details) if details or item else {}
 
-                            r_title = norm["title"]
-                            r_year = norm["release_year"]
-                            r_poster = norm["poster_url"]
-                            r_badge = norm.get("origin_badge", norm.get("origin_label", "Unclassified"))
-                            r_reason = norm.get("origin_badge_title", norm.get("origin_reason", f"{r_badge} film"))
+                            r_title = norm.get("title") or item.get("title", "Untitled")
+                            r_year = norm.get("release_year") or (item.get("release_date") or "")[:4] or "N/A"
+                            r_poster = norm.get("poster_url") or item.get("poster_path", "")
+                            if r_poster and not r_poster.startswith("http"):
+                                r_poster = f"https://image.tmdb.org/t/p/w185{r_poster}"
+                            r_badge = norm.get("origin_badge") or norm.get("origin_label") or "Cinema"
+                            r_reason = norm.get("origin_badge_title") or norm.get("origin_reason") or f"{r_badge} film"
 
                             row_thumb_html = (
                                 f'<img src="{r_poster}" class="cinesense-search-thumb" alt="{r_title}" />'
@@ -286,6 +288,7 @@ def render_analyzer_tab() -> None:
                                                 <div class="cinesense-search-row-title">{r_title}</div>
                                                 <div class="cinesense-search-row-meta">
                                                     <span>{r_year}</span>
+                                                    <span class="cinesense-spotlight-pill" style="margin-left:0.35rem;" title="{r_reason}">{r_badge}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -295,7 +298,7 @@ def render_analyzer_tab() -> None:
                             with r_col_btn:
                                 if st.button("Select", key=f"sel_search_res_{m_id}_{idx}", use_container_width=True):
                                     selected_film_data = {
-                                        "id": norm["id"],
+                                        "id": norm.get("id") or m_id,
                                         "title": r_title,
                                         "year": r_year,
                                         "poster": r_poster,
