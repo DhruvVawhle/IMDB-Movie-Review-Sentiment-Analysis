@@ -1,10 +1,10 @@
 # CineSense — Movie Review Intelligence
 
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.66-FF4B4B.svg)](https://streamlit.io/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cinesense-review.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-> **Deployed Application URL:** `https://cinesense-sentiment.streamlit.app` *(Placeholder — update upon deployment)*
+> **Live Application:** [https://cinesense-review.streamlit.app](https://cinesense-review.streamlit.app/)
 
 ---
 
@@ -93,7 +93,7 @@
    streamlit run app.py
    ```
 
-7. **Run Unit & Integration Tests (48 passing tests):**
+7. **Run Unit & Integration Tests (49 passing tests):**
    ```bash
    pytest tests/ -v
    ```
