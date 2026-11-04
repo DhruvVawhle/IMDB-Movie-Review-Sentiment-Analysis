@@ -21,6 +21,7 @@ DARK_THEME = {
     "line": "#30363D",
     "accent": "#D29922",
     "accent_hover": "#E3B341",
+    "accent_ink": "#0D1117",
     "pos": "#3FB950",
     "neg": "#F85149",
     "warn": "#E3B341",
@@ -31,10 +32,11 @@ LIGHT_THEME = {
     "surface": "#FFFFFF",
     "surface_2": "#F0F2F5",
     "ink": "#1F2328",
-    "muted": "#656D76",
+    "muted": "#57606A",
     "line": "#D0D7DE",
     "accent": "#9A6700",
-    "accent_hover": "#B37A00",
+    "accent_hover": "#7A5200",
+    "accent_ink": "#FFFFFF",
     "pos": "#1A7F37",
     "neg": "#CF222E",
     "warn": "#9A6700",
@@ -42,7 +44,7 @@ LIGHT_THEME = {
 
 # Typography Definitions — Criterion Editorial Pairing
 FONT_HEADING = "'Playfair Display', Georgia, 'Times New Roman', serif"
-FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+FONT_BODY = "'Albert Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 FONT_MONO = "'IBM Plex Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace"
 
 
@@ -71,7 +73,7 @@ def inject_css() -> None:
     css = f"""
     <style>
     /* Hallmark · CineSense v2.0 · Criterion Cinema Editorial · tone: editorial · genre: atmospheric */
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,400;1,600&display=swap');
 
     :root {{
         --bg: {active_theme['bg']};
@@ -83,6 +85,7 @@ def inject_css() -> None:
         --line: {active_theme['line']};
         --accent: {active_theme['accent']};
         --accent-hover: {active_theme['accent_hover']};
+        --accent-ink: {active_theme['accent_ink']};
         --accent-light: {accent_light};
         --accent-border: {accent_border};
         --pos: {active_theme['pos']};
@@ -139,13 +142,17 @@ def inject_css() -> None:
         outline-offset: 2px !important;
     }}
 
-    /* Motion Accessibility: Honor reduced motion preferences */
+    /* Motion Accessibility: Honor reduced motion preferences while preserving state feedback */
     @media (prefers-reduced-motion: reduce) {{
         *, *::before, *::after {{
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
             scroll-behavior: auto !important;
+        }}
+        * {{
+            transform: none !important;
+            transition-property: background-color, border-color, color, opacity !important;
+            transition-duration: 0.12s !important;
         }}
     }}
 
@@ -223,7 +230,7 @@ def inject_css() -> None:
     div[data-testid="stHorizontalBlock"]:has(.cinesense-header-brand) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(.cinesense-header-brand) button[data-testid="baseButton-primary"] {{
         background-color: var(--accent) !important;
-        color: #0D1117 !important;
+        color: var(--accent-ink) !important;
         border: 1px solid var(--accent) !important;
         font-weight: 700 !important;
     }}
@@ -231,7 +238,7 @@ def inject_css() -> None:
     div[data-testid="stHorizontalBlock"]:has(.cinesense-header-brand) button[data-testid="baseButton-primary"]:hover {{
         background-color: var(--accent-hover) !important;
         border-color: var(--accent-hover) !important;
-        color: #0D1117 !important;
+        color: var(--accent-ink) !important;
     }}
 
     /* Ghost Button in Header ("See model results" - 2nd column) */
@@ -515,10 +522,10 @@ def inject_css() -> None:
         margin-bottom: 1.25rem;
     }}
     .verdict-box.pos {{
-        border-left: 4px solid var(--pos);
+        border-color: var(--pos-border);
     }}
     .verdict-box.neg {{
-        border-left: 4px solid var(--neg);
+        border-color: var(--neg-border);
     }}
     .verdict-header {{
         display: flex;
@@ -719,6 +726,69 @@ def inject_css() -> None:
         height: 100%;
         object-fit: cover;
         display: block;
+    }}
+
+    /* Cinema Carousel Controls & Progress Dots */
+    .cinesense-carousel-counter {{
+        font-family: var(--font-mono) !important;
+        font-size: 0.74rem !important;
+        color: var(--muted) !important;
+        background: var(--surface) !important;
+        border: 1px solid var(--line) !important;
+        padding: 0.32rem 0.6rem !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+        letter-spacing: 0.02em !important;
+        line-height: 1.4 !important;
+    }}
+    .cinesense-auto-badge {{
+        font-family: var(--font-mono) !important;
+        font-size: 0.70rem !important;
+        letter-spacing: 0.04em !important;
+        text-transform: uppercase !important;
+        padding: 0.25rem 0.55rem !important;
+        border-radius: 4px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 0.3rem !important;
+        white-space: nowrap !important;
+    }}
+    .cinesense-auto-badge.active {{
+        background: rgba(210, 153, 34, 0.12) !important;
+        color: var(--accent) !important;
+        border: 1px solid rgba(210, 153, 34, 0.35) !important;
+    }}
+    .cinesense-auto-badge.paused {{
+        background: var(--surface-2) !important;
+        color: var(--muted) !important;
+        border: 1px solid var(--line) !important;
+    }}
+    .cinesense-carousel-dots {{
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+        margin-top: 0.45rem !important;
+        margin-bottom: 0.85rem !important;
+    }}
+    .cinesense-carousel-dot {{
+        width: 6px !important;
+        height: 6px !important;
+        border-radius: 50% !important;
+        background: var(--line) !important;
+        transition: background-color 0.25s ease, width 0.25s ease !important;
+    }}
+    .cinesense-carousel-dot.active {{
+        width: 22px !important;
+        border-radius: 3px !important;
+        background: var(--accent) !important;
+        box-shadow: 0 0 8px rgba(210, 153, 34, 0.45) !important;
+        animation: cinesenseDotPulse 7s ease-in-out infinite !important;
+    }}
+
+    @keyframes cinesenseDotPulse {{
+        0% {{ opacity: 0.75; }}
+        50% {{ opacity: 1; box-shadow: 0 0 12px rgba(210, 153, 34, 0.65); }}
+        100% {{ opacity: 0.75; }}
     }}
 
     /* Cinema Spotlight Hero Card on Movies Tab */
@@ -1209,34 +1279,155 @@ def inject_css() -> None:
         line-height: 1.5;
     }}
 
-    /* Streamlit Button Overrides */
-    div.stButton > button {{
+    /* Streamlit Button Overrides — Comprehensive Coverage for All Streamlit Versions */
+    button,
+    div[data-testid="stButton"] > button,
+    div.stButton > button,
+    button[data-testid="baseButton-secondary"],
+    button[data-testid="stBaseButton-secondary"],
+    button[kind="secondary"] {{
         font-family: var(--font-body) !important;
-        border-radius: 4px !important;
-        transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
+        background-color: var(--surface) !important;
+        background: var(--surface) !important;
+        color: var(--ink) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 6px !important;
+        padding: 0.35rem 0.75rem !important;
+        min-height: 36px !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        box-shadow: none !important;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
     }}
 
-    div.stButton > button[kind="primary"] {{
+    button:hover,
+    div[data-testid="stButton"] > button:hover,
+    div.stButton > button:hover,
+    button[data-testid="baseButton-secondary"]:hover,
+    button[data-testid="stBaseButton-secondary"]:hover,
+    button[kind="secondary"]:hover {{
+        background-color: var(--surface-2) !important;
+        background: var(--surface-2) !important;
+        border-color: var(--accent) !important;
+        color: var(--accent) !important;
+        box-shadow: 0 0 8px rgba(210, 153, 34, 0.15) !important;
+    }}
+
+    button p,
+    button span,
+    div[data-testid="stButton"] > button p,
+    div.stButton > button p,
+    button[data-testid="baseButton-secondary"] p,
+    button[data-testid="stBaseButton-secondary"] p {{
+        color: inherit !important;
+        font-weight: 500 !important;
+        margin: 0 !important;
+    }}
+
+    button:hover p,
+    button:hover span,
+    div[data-testid="stButton"] > button:hover span,
+    div.stButton > button:hover span,
+    button[data-testid="baseButton-secondary"]:hover span,
+    button[data-testid="stBaseButton-secondary"]:hover span {{
+        color: var(--accent) !important;
+    }}
+
+    div[data-testid="stButton"] > button[kind="primary"],
+    div.stButton > button[kind="primary"],
+    button[data-testid="baseButton-primary"],
+    button[data-testid="stBaseButton-primary"] {{
         background-color: var(--accent) !important;
+        background: var(--accent) !important;
         color: #0D1117 !important;
         border: 1px solid var(--accent) !important;
         font-weight: 600 !important;
     }}
-    div.stButton > button[kind="primary"]:hover {{
+    div[data-testid="stButton"] > button[kind="primary"]:hover,
+    div.stButton > button[kind="primary"]:hover,
+    button[data-testid="baseButton-primary"]:hover,
+    button[data-testid="stBaseButton-primary"]:hover {{
         background-color: var(--accent-hover) !important;
+        background: var(--accent-hover) !important;
         border-color: var(--accent-hover) !important;
         color: #0D1117 !important;
     }}
-
-    div.stButton > button[kind="secondary"] {{
-        background-color: var(--surface) !important;
-        color: var(--ink) !important;
-        border: 1px solid var(--line) !important;
+    div[data-testid="stButton"] > button[kind="primary"] p,
+    button[data-testid="baseButton-primary"] p {{
+        color: #0D1117 !important;
+        font-weight: 600 !important;
     }}
-    div.stButton > button[kind="secondary"]:hover {{
-        border-color: var(--accent) !important;
-        color: var(--accent) !important;
+
+    /* Streamlit Pills & Button Group Overrides — Criterion Cinema Editorial */
+    div[data-testid="stPills"],
+    div[data-testid="stButtonGroup"],
+    div[data-testid="stSegmentedControl"],
+    [data-testid*="stButtonGroup"] {{
+        gap: 0.35rem !important;
+        background: transparent !important;
+    }}
+
+    div[data-testid="stPills"] button,
+    div[data-testid="stButtonGroup"] button,
+    div[data-testid="stSegmentedControl"] button,
+    button[data-testid*="pills"],
+    button[data-testid*="Pill"],
+    [data-testid*="stBaseButton-pills"] {{
+        background-color: var(--surface) !important;
+        background: var(--surface) !important;
+        color: var(--muted) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 9999px !important;
+        font-family: var(--font-body) !important;
+        font-size: 0.78rem !important;
+        font-weight: 500 !important;
+        padding: 0.28rem 0.8rem !important;
+        min-height: 32px !important;
+        transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
+        box-shadow: none !important;
+    }}
+
+    div[data-testid="stPills"] button p,
+    div[data-testid="stButtonGroup"] button p,
+    div[data-testid="stSegmentedControl"] button p,
+    button[data-testid*="pills"] p {{
+        color: inherit !important;
+        font-size: inherit !important;
+        margin: 0 !important;
+    }}
+
+    div[data-testid="stPills"] button:hover,
+    div[data-testid="stButtonGroup"] button:hover,
+    div[data-testid="stSegmentedControl"] button:hover,
+    button[data-testid*="pills"]:hover {{
         background-color: var(--surface-2) !important;
+        background: var(--surface-2) !important;
+        color: var(--ink) !important;
+        border-color: var(--muted) !important;
+    }}
+
+    /* Active Selected Pill */
+    div[data-testid="stPills"] button[aria-checked="true"],
+    div[data-testid="stButtonGroup"] button[aria-checked="true"],
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+    div[data-testid="stPills"] button[data-selected="true"],
+    div[data-testid="stButtonGroup"] button[data-selected="true"],
+    button[data-testid*="pillsActive"],
+    [data-testid="stBaseButton-pillsActive"] {{
+        background-color: var(--accent-light) !important;
+        background: var(--accent-light) !important;
+        color: var(--accent) !important;
+        border: 1px solid var(--accent) !important;
+        font-weight: 600 !important;
+        box-shadow: 0 0 10px rgba(210, 153, 34, 0.20) !important;
+    }}
+
+    div[data-testid="stPills"] button[aria-checked="true"] p,
+    div[data-testid="stButtonGroup"] button[aria-checked="true"] p,
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] p,
+    button[data-testid*="pillsActive"] p {{
+        color: var(--accent) !important;
+        font-weight: 600 !important;
     }}
 
     /* Dataframe Table Container */
@@ -1309,9 +1500,14 @@ def inject_css() -> None:
         margin-top: 0.85rem !important;
     }}
 
+    @media (max-width: 960px) and (min-width: 601px) {{
+        .pipeline-strip {{
+            grid-template-columns: repeat(4, 1fr) !important;
+        }}
+    }}
     @media (max-width: 600px) {{
         .pipeline-strip {{
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr !important;
         }}
         .kpi-value {{
             font-size: 1.35rem;

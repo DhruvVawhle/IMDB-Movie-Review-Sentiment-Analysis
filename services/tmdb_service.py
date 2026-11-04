@@ -118,11 +118,11 @@ def fetch_movie_details(movie_id: int, api_key: str) -> Optional[Dict[str, Any]]
     return None
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_tmdb_movies_raw(category: str, region: str, api_key: str) -> List[Dict[str, Any]]:
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_tmdb_movies_raw(category: str, region: str, api_key: str, page: int = 1) -> List[Dict[str, Any]]:
     """
     Fetch raw movie list from TMDB for a category ('now_playing', 'upcoming') and region.
-    Cached for 1 hour with a strict 5-second timeout.
+    Cached for 30 minutes with a strict 5-second timeout.
     """
     if not api_key:
         return []
@@ -133,7 +133,7 @@ def fetch_tmdb_movies_raw(category: str, region: str, api_key: str) -> List[Dict
         "api_key": api_key,
         "region": region,
         "language": "en-US",
-        "page": 1,
+        "page": page,
     }
     try:
         resp = session.get(url, params=params, timeout=5.0)
@@ -209,13 +209,21 @@ def normalize_and_classify_movie(
     """
     Normalize raw TMDB movie data and apply origin classification.
     Uses full movie details (/movie/{id}) when available, not list location.
+    Retains the most recent dated theatrical release date.
     Never attaches TMDB review text.
     """
     data = details if details else item
     poster_path = data.get("poster_path") or item.get("poster_path")
     poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else ""
 
-    release_date = data.get("release_date") or item.get("release_date") or ""
+    # Always keep the most recent dated release between raw theatrical listing and details
+    raw_date = item.get("release_date") or ""
+    details_date = (details.get("release_date") if details else "") or ""
+    if raw_date and details_date:
+        release_date = max(raw_date, details_date)
+    else:
+        release_date = raw_date or details_date or ""
+
     release_year = release_date[:4] if release_date else "N/A"
 
     # Resolve genres
@@ -257,31 +265,42 @@ def normalize_and_classify_movie(
     }
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def fetch_all_classified_movies_for_category(category: str) -> List[Dict[str, Any]]:
     """
     Fetch and classify all raw movies for a given category ('now_playing' or 'upcoming').
     Deduplicates across US, IN, and discover queries and runs concurrent details classification.
-    Cached for 1 hour so region filtering in the UI is instantaneous.
+    Orders 'now_playing' strictly by latest dated release (descending) so newest theatrical films appear first.
+    Cached for 30 minutes so region filtering in the UI is instantaneous.
     """
     api_key = get_tmdb_api_key()
     if not api_key:
         return []
 
-    # 1. Fetch raw candidates
-    us_raw = fetch_tmdb_movies_raw(category, "US", api_key)
-    in_raw = fetch_tmdb_movies_raw(category, "IN", api_key)
+    # 1. Fetch raw candidates (fetching up to 2 pages for now_playing to ensure deep, up-to-date coverage)
+    us_raw_p1 = fetch_tmdb_movies_raw(category, "US", api_key, page=1)
+    us_raw_p2 = fetch_tmdb_movies_raw(category, "US", api_key, page=2) if category == "now_playing" else []
+    in_raw_p1 = fetch_tmdb_movies_raw(category, "IN", api_key, page=1)
+    in_raw_p2 = fetch_tmdb_movies_raw(category, "IN", api_key, page=2) if category == "now_playing" else []
     discover_raw = fetch_indian_upcoming_discover(api_key) if category == "upcoming" else []
 
-    # 2. Deduplicate raw movies by TMDB ID
+    # 2. Deduplicate raw movies by TMDB ID, retaining the latest theatrical release date across regional entries
     all_raw: List[Dict[str, Any]] = []
-    seen_ids = set()
+    seen_movies: Dict[int, Dict[str, Any]] = {}
 
-    for movie in in_raw + us_raw + discover_raw:
+    for movie in in_raw_p1 + in_raw_p2 + us_raw_p1 + us_raw_p2 + discover_raw:
         m_id = movie.get("id")
-        if m_id and m_id not in seen_ids:
-            seen_ids.add(m_id)
-            all_raw.append(movie)
+        if not m_id:
+            continue
+        if m_id not in seen_movies:
+            movie_copy = dict(movie)
+            seen_movies[m_id] = movie_copy
+            all_raw.append(movie_copy)
+        else:
+            existing_date = seen_movies[m_id].get("release_date") or ""
+            candidate_date = movie.get("release_date") or ""
+            if candidate_date > existing_date:
+                seen_movies[m_id]["release_date"] = candidate_date
 
     if not all_raw:
         return []
@@ -303,13 +322,41 @@ def fetch_all_classified_movies_for_category(category: str) -> List[Dict[str, An
                 item = future_map[future]
                 classified_movies.append(normalize_and_classify_movie(item, details=None))
 
-    # Keep stable order roughly matching popularity / source list order
-    id_order = {item["id"]: idx for idx, item in enumerate(all_raw)}
-    classified_movies.sort(key=lambda m: id_order.get(m["id"], 999999))
+    # 4. Sort and filter movies based on category requirement:
+    today_iso = datetime.now().date().isoformat()
+    cutoff_past_iso = (datetime.now().date() - timedelta(days=60)).isoformat()
+
+    if category == "now_playing":
+        # Keep only contemporary theatrical releases within the current window
+        classified_movies = [m for m in classified_movies if (m.get("release_date") or "") >= cutoff_past_iso]
+
+        # Strictly sort by latest release date descending so newest theatrical titles appear first
+        def _now_playing_sort_key(m: Dict[str, Any]):
+            r_date = m.get("release_date") or "0000-00-00"
+            score = float(m.get("audience_score", 0.0) or 0.0)
+            return (r_date, score)
+
+        classified_movies.sort(key=_now_playing_sort_key, reverse=True)
+    elif category == "upcoming":
+        # Keep only truly upcoming titles (release date today or future)
+        classified_movies = [m for m in classified_movies if (m.get("release_date") or "") >= today_iso]
+
+        # Sort upcoming titles by chronological release date (soonest premiere first)
+        def _upcoming_sort_key(m: Dict[str, Any]):
+            r_date = m.get("release_date") or "9999-99-99"
+            score = float(m.get("audience_score", 0.0) or 0.0)
+            return (r_date, -score)
+
+        classified_movies.sort(key=_upcoming_sort_key)
+    else:
+        # Keep stable order matching source list
+        id_order = {item["id"]: idx for idx, item in enumerate(all_raw)}
+        classified_movies.sort(key=lambda m: id_order.get(m["id"], 999999))
+
     return classified_movies
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def get_movies_by_category_and_region(
     category: str,
     region_filter: str,

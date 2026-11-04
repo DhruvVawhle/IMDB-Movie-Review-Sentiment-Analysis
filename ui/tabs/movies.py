@@ -121,13 +121,10 @@ def render_movies_tab() -> None:
         try:
             with st.spinner("Querying TMDB API..."):
                 raw_results = search_tmdb_movies(active_search, api_key)
-                # Fetch details and classify origin for top search results
-                classified_results = []
-                for item in raw_results[:18]:
-                    m_id = item.get("id")
-                    details = fetch_movie_details(m_id, api_key) if m_id else None
-                    classified_results.append(normalize_and_classify_movie(item, details=details))
-                movies_list = classified_results
+                # Normalize and classify origin directly from search items without blocking on N+1 network lookups
+                movies_list = [
+                    normalize_and_classify_movie(item) for item in raw_results[:18]
+                ]
         except Exception:
             st.warning("TMDB request failed or timed out. Please check your connection.")
 
@@ -139,19 +136,26 @@ def render_movies_tab() -> None:
             return
 
     elif api_key:
-        # Default browse view: now_playing list classified by origin
+        # Default browse view: filter by theatrical category and origin region
         try:
             with st.spinner("Fetching theatrical releases..."):
-                np_movies = get_movies_by_category_and_region("now_playing", "All")
-                up_movies = get_movies_by_category_and_region("upcoming", "All")
-                # Combine now playing and upcoming for a deep pool to cycle through
-                seen_ids = set()
-                combined = []
-                for m in np_movies + up_movies:
-                    if m.get("id") not in seen_ids:
-                        seen_ids.add(m.get("id"))
-                        combined.append(m)
-                movies_list = combined if combined else np_movies
+                cat_filter = st.session_state.get("movies_browse_category") or "In theatres now (latest)"
+                reg_filter = st.session_state.get("movies_browse_region") or "All"
+
+                if cat_filter == "In theatres now (latest)":
+                    movies_list = get_movies_by_category_and_region("now_playing", reg_filter)
+                elif cat_filter == "Coming soon":
+                    movies_list = get_movies_by_category_and_region("upcoming", reg_filter)
+                else:  # "All featured"
+                    np_movies = get_movies_by_category_and_region("now_playing", reg_filter)
+                    up_movies = get_movies_by_category_and_region("upcoming", reg_filter)
+                    seen_ids = set()
+                    combined = []
+                    for m in np_movies + up_movies:
+                        if m.get("id") not in seen_ids:
+                            seen_ids.add(m.get("id"))
+                            combined.append(m)
+                    movies_list = combined if combined else np_movies
         except Exception:
             movies_list = []
 
@@ -304,11 +308,40 @@ def render_movies_tab() -> None:
             unsafe_allow_html=True,
         )
         st.markdown(
-            '<p style="font-family:var(--font-body); font-size:0.85rem; color:var(--muted); margin-bottom:1.15rem;">'
-            'Browse current and upcoming theatrical titles. Select "Inspect" to spotlight any title above, or "Review" to load it into the sentiment analyzer.'
+            '<p style="font-family:var(--font-body); font-size:0.85rem; color:var(--muted); margin-bottom:0.85rem;">'
+            'Browse current and upcoming theatrical titles sorted by latest release date. Select "Inspect" to spotlight any title above, or "Review" to load it into the sentiment analyzer.'
             '</p>',
             unsafe_allow_html=True,
         )
+
+        if not active_search:
+            ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([2.8, 1.8, 1.4], gap="small", vertical_alignment="center")
+            with ctrl_c1:
+                st.pills(
+                    "Browse category",
+                    options=["In theatres now (latest)", "Coming soon", "All featured"],
+                    default="In theatres now (latest)",
+                    label_visibility="collapsed",
+                    key="movies_browse_category",
+                )
+            with ctrl_c2:
+                st.pills(
+                    "Browse region",
+                    options=["All", "Hollywood", "Indian"],
+                    default="All",
+                    label_visibility="collapsed",
+                    key="movies_browse_region",
+                )
+            with ctrl_c3:
+                btn_m1, btn_m2 = st.columns(2, gap="small")
+                with btn_m1:
+                    if st.button("More ↻", icon=":material/autorenew:", key="btn_cycle_movies", use_container_width=True, help="Cycle next 9 films"):
+                        st.session_state["movies_browse_offset"] = st.session_state.get("movies_browse_offset", 0) + PAGE_SIZE
+                        st.rerun()
+                with btn_m2:
+                    if st.button("Sync", icon=":material/refresh:", key="btn_refresh_movies", use_container_width=True, help="Force refresh latest theatrical releases from TMDB"):
+                        st.cache_data.clear()
+                        st.rerun()
 
         n_cols = 3
         rows = [displayed_movies[i : i + n_cols] for i in range(0, len(displayed_movies), n_cols)]
@@ -320,6 +353,8 @@ def render_movies_tab() -> None:
                     m_title = movie.get("title", "Untitled")
                     m_score = movie.get("audience_score", 0.0)
                     m_year = movie.get("release_year") or "N/A"
+                    m_date = movie.get("formatted_date") or m_year
+                    m_origin = movie.get("origin_label", movie.get("origin_badge", ""))
                     m_poster = movie.get("poster_url", "")
                     m_watched = is_movie_watched(movie.get("id"), m_title)
                     watched_badge = (
@@ -339,6 +374,8 @@ def render_movies_tab() -> None:
                     )
                     active_style = "border: 2px solid var(--accent); box-shadow: 0 0 10px rgba(210, 153, 34, 0.28);" if is_active_card else ""
 
+                    badge_tag = f'<span class="badge-neutral" style="font-size:0.68rem; padding:1px 6px;">{m_origin}</span>' if m_origin else ''
+
                     render_html(
                         f"""
                         <div class="cinesense-film-card" style="{active_style}">
@@ -352,8 +389,9 @@ def render_movies_tab() -> None:
                             </div>
                             <div class="cinesense-card-content">
                                 <div class="cinesense-film-title" title="{m_title}">{m_title}</div>
-                                <div class="cinesense-film-meta">
-                                    <span class="cinesense-film-date">{m_year}</span>
+                                <div class="cinesense-film-meta" style="display:flex; justify-content:space-between; align-items:center;">
+                                    <span class="cinesense-film-date">{m_date}</span>
+                                    {badge_tag}
                                 </div>
                             </div>
                         </div>

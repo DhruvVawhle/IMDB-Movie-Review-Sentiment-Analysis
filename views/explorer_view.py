@@ -103,7 +103,7 @@ def render_explorer():
     # Data issue callout
     st.markdown(
         """
-        <div class="cinesense-panel" style="border-left: 3px solid var(--accent-amber); margin-bottom: 1.25rem;">
+        <div class="cinesense-panel" style="border: 1px solid var(--accent-amber); margin-bottom: 1.25rem;">
             <div class="cinesense-panel-body" style="color: var(--text-primary); font-size: 0.9rem;">
                 <strong>Data issue to fix:</strong> the word clouds were dominated by <code>br</code>, left over from <code>&lt;br /&gt;</code> tags.
                 Strip tags before counting words and it disappears from both charts.

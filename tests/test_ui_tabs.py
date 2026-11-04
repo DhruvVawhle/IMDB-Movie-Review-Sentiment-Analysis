@@ -48,3 +48,26 @@ def test_tab_renders_without_exceptions(tab_name):
     assert not at.exception, f"Tab '{tab_name}' raised an exception: {at.exception}"
 
 
+def test_normalize_and_classify_movie_preserves_latest_theatrical_date():
+    from services.tmdb_service import normalize_and_classify_movie
+    # Raw item has theatrical release date Oct 23, details has older festival premiere Jul 15
+    raw_item = {
+        "id": 1058424,
+        "title": "Hope",
+        "release_date": "2026-10-23",
+        "vote_average": 6.8,
+        "overview": "Story of hope.",
+    }
+    details = {
+        "id": 1058424,
+        "title": "Hope",
+        "release_date": "2026-07-15",
+        "vote_average": 6.8,
+        "production_countries": [{"iso_3166_1": "KR"}],
+    }
+    normalized = normalize_and_classify_movie(raw_item, details=details)
+    assert normalized["release_date"] == "2026-10-23"
+    assert normalized["formatted_date"] == "Oct 23, 2026"
+
+
+

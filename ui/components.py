@@ -365,7 +365,7 @@ def render_kpi_strip(
     with c2:
         st.markdown(
             f"""
-            <div class="kpi-card" style="border-left: 3px solid var(--pos);">
+            <div class="kpi-card">
                 <div class="kpi-label">Positive</div>
                 <div class="kpi-value" style="color:var(--pos);">{pos:,}</div>
                 <div class="kpi-desc">50.0% class balance</div>
@@ -376,7 +376,7 @@ def render_kpi_strip(
     with c3:
         st.markdown(
             f"""
-            <div class="kpi-card" style="border-left: 3px solid var(--neg);">
+            <div class="kpi-card">
                 <div class="kpi-label">Negative</div>
                 <div class="kpi-value" style="color:var(--neg);">{neg:,}</div>
                 <div class="kpi-desc">50.0% class balance</div>
@@ -814,7 +814,7 @@ def render_context_intelligence_card(context_data: Dict[str, Any]) -> None:
 
     st.markdown(
         f"""
-        <div class="cinesense-card" style="border-top: 3px solid var(--accent); margin-top: 1.25rem; margin-bottom: 1.25rem;">
+        <div class="cinesense-card" style="margin-top: 1.25rem; margin-bottom: 1.25rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.65rem;">
                 <div style="font-family:var(--font-heading); font-size:1.05rem; font-weight:600; color:var(--ink);">
                     Cinematic Context & NLP Intelligence
@@ -822,9 +822,9 @@ def render_context_intelligence_card(context_data: Dict[str, Any]) -> None:
                 <div>{badge_html}</div>
             </div>
             <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--muted); margin-bottom:0.75rem;">
-                Engine: <strong>{engine_name}</strong> &bull; {status_msg}
+                Engine: <strong>{engine_name}</strong> &mdash; {status_msg}
             </div>
-            <div style="background:var(--surface-2); border-radius:4px; padding:0.75rem 0.9rem; margin-bottom:0.85rem; border-left:3px solid var(--accent);">
+            <div style="background:var(--surface-2); border-radius:4px; padding:0.75rem 0.9rem; margin-bottom:0.85rem; border:1px solid var(--line);">
                 <div style="font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; color:var(--muted); margin-bottom:0.25rem;">Contextual Summary</div>
                 <div style="font-family:var(--font-body); font-size:0.9rem; color:var(--ink); font-style:italic; line-height:1.45;">
                     "{summary}"

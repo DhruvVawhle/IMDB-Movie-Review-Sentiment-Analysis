@@ -34,7 +34,7 @@ def render_overview():
     # "Try it on your own review" Callout Banner
     st.markdown(
         """
-        <div class="cinesense-panel" style="border-left: 3px solid var(--accent-amber); margin-bottom: 1.5rem;">
+        <div class="cinesense-panel" style="border: 1px solid var(--accent-amber); margin-bottom: 1.5rem;">
             <div class="cinesense-panel-title" style="color: var(--accent-amber); font-size: 1.05rem;">
                 Try it on your own review
             </div>

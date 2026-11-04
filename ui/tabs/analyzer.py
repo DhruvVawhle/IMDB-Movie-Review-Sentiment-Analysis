@@ -257,11 +257,10 @@ def render_analyzer_tab() -> None:
                             '</div>',
                             unsafe_allow_html=True,
                         )
-                        # Show up to 8 compact rows
+                        # Show up to 8 compact rows without blocking on N+1 network lookups
                         for idx, item in enumerate(raw_results[:8]):
                             m_id = item.get("id")
-                            details = fetch_movie_details(m_id, api_key) if m_id else None
-                            norm = normalize_and_classify_movie(item, details=details) if details or item else {}
+                            norm = normalize_and_classify_movie(item) if item else {}
 
                             r_title = norm.get("title") or item.get("title", "Untitled")
                             r_year = norm.get("release_year") or (item.get("release_date") or "")[:4] or "N/A"
@@ -297,13 +296,15 @@ def render_analyzer_tab() -> None:
                                 )
                             with r_col_btn:
                                 if st.button("Select", key=f"sel_search_res_{m_id}_{idx}", use_container_width=True):
+                                    details = fetch_movie_details(m_id, api_key) if m_id else None
+                                    full_norm = normalize_and_classify_movie(item, details=details) if details else norm
                                     selected_film_data = {
-                                        "id": norm.get("id") or m_id,
-                                        "title": r_title,
-                                        "year": r_year,
-                                        "poster": r_poster,
-                                        "origin_badge": r_badge,
-                                        "origin_badge_title": r_reason,
+                                        "id": full_norm.get("id") or m_id,
+                                        "title": full_norm.get("title") or r_title,
+                                        "year": full_norm.get("release_year") or r_year,
+                                        "poster": full_norm.get("poster_url") or r_poster,
+                                        "origin_badge": full_norm.get("origin_badge") or r_badge,
+                                        "origin_badge_title": full_norm.get("origin_badge_title") or r_reason,
                                     }
                                     _select_film_for_analyzer(selected_film_data)
                                     st.session_state["analyzer_last_search"] = ""

@@ -26,7 +26,7 @@ from ui.tabs.pipeline import render_pipeline_tab
 # Configure Streamlit page defaults
 st.set_page_config(
     page_title="CineSense — Movie Review Intelligence",
-    page_icon="🎬",
+    page_icon=":material/movie:",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
